@@ -5,6 +5,8 @@ class Config:
     enable_backprop = True
 
 class Variable:
+    __array_priority__ = 200
+
     def __init__(self, data: np.ndarray, name=None):
         if data is not None:
             if not isinstance(data, np.ndarray):
@@ -90,8 +92,16 @@ class Variable:
     def __add__(self, other):
         return add(self, other)
 
+    def __sub__(self, other):
+        return sub(self, other)
+
+    def __neg__(self):
+        return neg(self)
+
 class Function:
     def __call__(self, *inputs):
+        inputs = [as_variable(x) for x in inputs]
+
         xs = [x.data for x in inputs]
         ys = self.forward(*xs)
         if not isinstance(ys, tuple):
@@ -121,6 +131,14 @@ class Add(Function):
     def backward(self, gy):
         return gy, gy
 
+class Sub(Function):
+    def forward(self, x0, x1):
+        y = x0 - x1
+        return y
+
+    def backward(self, gy):
+        return gy, -gy
+
 class Mul(Function):
     def forward(self, x0, x1):
         y = x0 * x1
@@ -129,6 +147,24 @@ class Mul(Function):
     def backward(self, gy):
         x0, x1 = self.inputs
         return gy * x1, gy * x0
+
+class Div(Function):
+    def forward(self, x0, x1):
+        y = x0 / x1
+        return y
+
+    def backward(self, gy):
+        x0, x1 = self.inputs
+        gx0 = gy / x1
+        gx1 = gy * (-x0 / x1 ** 2)
+        return gx0, gx1
+
+class Neg(Function):
+    def forward(self, x):
+        return -x
+
+    def backward(self, gy):
+        return -gy
 
 class Square(Function):
     def forward(self, x):
@@ -148,17 +184,55 @@ class Exp(Function):
         gx = np.exp(x) * gy
         return gx
 
+class Pow(Function):
+    def __init__(self, c):
+        self.c = c
+
+    def forward(self, x):
+        return x ** self.c
+
+    def backward(self, gy):
+        x = self.inputs[0].data
+        c = self.c
+        gx = c * x ** (c - 1) * gy
+        return gx
+
 def add(x0, x1):
+    x1 = as_array(x1)
     return Add()(x0, x1)
 
+def sub(x0, x1):
+    x1 = as_array(x1)
+    return Sub()(x0, x1)
+
+def rsub(x0, x1):
+    x1 = as_array(x1)
+    return Sub()(x1, x0)
+
 def mul(x0, x1):
+    x1 = as_array(x1)
     return Mul()(x0, x1)
+
+def div(x0, x1):
+    x1 = as_array(x1)
+    return Div()(x0, x1)
+
+def rdiv(x0, x1):
+    x1 = as_array(x1)
+    return Div()(x1, x0)
+
+def neg(x):
+    x = as_array(x)
+    return Neg()(x)
 
 def square(x):
     return Square()(x)
 
 def exp(x):
     return Exp()(x)
+
+def pow(x, c):
+    return Pow(c)(x)
 
 def numerical_diff(f, x, eps=1e-4):
     x0 = Variable(x.data - eps)
@@ -172,19 +246,29 @@ def as_array(x):
         return np.array(x)
     return x
 
+def as_variable(obj):
+    if isinstance(obj, Variable):
+        return obj
+    return Variable(obj)
+
+Variable.__add__ = add
+Variable.__radd__ = add
+Variable.__mul__ = mul
+Variable.__rmul__ = mul
+Variable.__sub__ = sub
+Variable.__rsub__ = rsub
+Variable.__neg__ = neg
+Variable.__truediv__ = div
+Variable.__rtruediv__ = rdiv
+Variable.__pow__ = pow
+
 ## Test
 
-Config.enable_backprop = True
-x = Variable(np.ones((100, 100, 100)))
-y = square(square(square(x)))
+x = Variable(np.array(2.0))
+y = x ** 3
 y.backward()
-
-Config.enable_backprop = False
-x = Variable(np.ones((100, 100, 100)))
-y = square(square(square(x)))
-
-print(len(x))
-print(x)
+print(x.grad)
+print(y)
 
 ## Unittest
 
