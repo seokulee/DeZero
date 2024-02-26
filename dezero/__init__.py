@@ -12,6 +12,7 @@ else:
     from dezero.core import Variable
     from dezero.core import Parameter
     from dezero.core import Function
+    from dezero.models import Model
     from dezero.core import using_config
     from dezero.core import no_grad
     from dezero.core import as_array
