@@ -125,6 +125,9 @@ class Variable:
     def __neg__(self):
         return neg(self)
 
+class Parameter(Variable):
+    pass
+
 class Function:
     def __call__(self, *inputs):
         inputs = [as_variable(x) for x in inputs]
