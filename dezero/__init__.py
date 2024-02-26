@@ -13,6 +13,8 @@ else:
     from dezero.core import Parameter
     from dezero.core import Function
     from dezero.models import Model
+    from dezero.datasets import Dataset
+    from dezero.dataloaders import DataLoader
     from dezero.core import using_config
     from dezero.core import no_grad
     from dezero.core import as_array
